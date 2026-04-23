@@ -5,7 +5,9 @@ export const metadata: Metadata = {
   title: "Synergos Airtime Hub",
   description: "Instant airtime anytime, anywhere.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
   },
 };
 
