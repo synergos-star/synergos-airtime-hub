@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-const DEFAULT_RATE = 0.93;
+const FALLBACK_RATE = 0.93;
 const SUPPORT_PHONE_1 = "0112371614";
 const SUPPORT_PHONE_2 = "0796684318";
 const SUPPORT_EMAIL = "ratiisimon@gmail.com";
@@ -122,6 +122,13 @@ type ApiResponse = {
   };
 };
 
+type SettingsResponse = {
+  success: boolean;
+  settings?: {
+    airtimeRate: number;
+  };
+};
+
 export default function HomePage() {
   const [operator, setOperator] = useState("Safaricom");
   const [sameNumber, setSameNumber] = useState(false);
@@ -129,18 +136,40 @@ export default function HomePage() {
   const [recipientNumber, setRecipientNumber] = useState("");
   const [amount, setAmount] = useState("250");
 
+  const [currentRate, setCurrentRate] = useState(FALLBACK_RATE);
+  const [isLoadingRate, setIsLoadingRate] = useState(true);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [transactionReference, setTransactionReference] = useState("");
+
+  useEffect(() => {
+    async function fetchRate() {
+      try {
+        const response = await fetch("/api/settings", { cache: "no-store" });
+        const data: SettingsResponse = await response.json();
+
+        if (response.ok && data.success && data.settings?.airtimeRate) {
+          setCurrentRate(data.settings.airtimeRate);
+        }
+      } catch (error) {
+        console.error("FETCH_RATE_ERROR", error);
+      } finally {
+        setIsLoadingRate(false);
+      }
+    }
+
+    fetchRate();
+  }, []);
 
   const numericAmount = Number(amount || 0);
   const actualRecipientNumber = sameNumber ? payingNumber : recipientNumber;
 
   const amountToPay = useMemo(() => {
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) return 0;
-    return numericAmount * DEFAULT_RATE;
-  }, [numericAmount]);
+    return numericAmount * currentRate;
+  }, [numericAmount, currentRate]);
 
   const payerValid = payingNumber.length === 0 ? true : isValidKenyanPhone(payingNumber);
   const recipientValid =
@@ -154,7 +183,8 @@ export default function HomePage() {
     payerValid &&
     recipientValid &&
     amountValid &&
-    !isSubmitting;
+    !isSubmitting &&
+    !isLoadingRate;
 
   async function handleSubmit() {
     setErrorMessage("");
@@ -189,7 +219,7 @@ export default function HomePage() {
         return;
       }
 
-            const createdReference = data.transaction?.transactionReference || "";
+      const createdReference = data.transaction?.transactionReference || "";
       setTransactionReference(createdReference);
 
       const stkResponse = await fetch("/api/mpesa/stk-push", {
@@ -255,7 +285,7 @@ export default function HomePage() {
               <span className="text-sky-600">Anytime</span>, Anywhere.
             </div>
             <div className="mt-1 text-4xl font-black leading-tight text-green-600 sm:text-6xl lg:text-[68px]">
-              Enjoy up to 15% discount.
+              Enjoy flexible live rates.
             </div>
 
             <p className="mx-auto mt-5 max-w-4xl text-base leading-8 text-slate-700 sm:text-xl">
@@ -289,7 +319,7 @@ export default function HomePage() {
                 TOP UP INSTANTLY.
               </div>
               <div className="mt-1 text-3xl font-black leading-tight text-green-400 sm:text-[34px]">
-                SAVE MORE.
+                LIVE RATES.
               </div>
 
               <p className="mt-4 max-w-md text-base leading-8 text-emerald-50 sm:text-lg">
@@ -301,8 +331,10 @@ export default function HomePage() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-black text-green-700">
                     RATE
                   </div>
-                  <div className="mt-3 text-sm font-extrabold text-white">Best Rates</div>
-                  <div className="mt-1 text-xs text-emerald-100">Up to 15% discount</div>
+                  <div className="mt-3 text-sm font-extrabold text-white">Current Rate</div>
+                  <div className="mt-1 text-xs text-emerald-100">
+                    {(currentRate * 100).toFixed(0)}%
+                  </div>
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
@@ -501,7 +533,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex justify-between gap-3">
                   <span>Rate</span>
-                  <span>{(DEFAULT_RATE * 100).toFixed(0)}%</span>
+                  <span>{(currentRate * 100).toFixed(0)}%</span>
                 </div>
               </div>
             </div>
@@ -516,7 +548,7 @@ export default function HomePage() {
               }`}
               type="button"
             >
-              {isSubmitting ? "Creating Transaction..." : "BUY AIRTIME NOW"}
+              {isSubmitting ? "Creating Transaction..." : isLoadingRate ? "Loading rate..." : "BUY AIRTIME NOW"}
             </button>
           </div>
 
@@ -536,7 +568,7 @@ export default function HomePage() {
           <InfoCard
             badge="%"
             title="Best Rates"
-            text="Enjoy up to 15% discount compared to other airtime services."
+            text="Enjoy live admin-controlled rates across the platform."
           />
           <InfoCard
             badge="LOCK"
@@ -567,8 +599,8 @@ export default function HomePage() {
             />
             <WhyCard
               badge="%"
-              title="Best Rates"
-              text="Enjoy up to 15% discount compared to other airtime services."
+              title="Live Rate"
+              text="Your admin can update the rate and the site reflects it immediately."
             />
             <WhyCard
               badge="LOCK"
@@ -684,7 +716,7 @@ export default function HomePage() {
       <footer className="px-4 pb-7 pt-9 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl text-center">
           <div className="text-xl font-bold text-slate-700 sm:text-[22px]">
-            Copyright Ã‚Â© SYNERGOS AIRTIME HUB
+            Copyright © SYNERGOS AIRTIME HUB
           </div>
           <div className="mt-3 text-lg text-slate-500">Share on social</div>
 

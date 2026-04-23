@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-const DEFAULT_RATE = 0.93;
+const FALLBACK_RATE = 0.93;
 
 function normalizeKenyanPhone(value: string) {
   const cleaned = value.replace(/\D/g, "");
@@ -23,6 +23,20 @@ function makeReference() {
   const stamp = Date.now().toString().slice(-8);
   const rand = Math.floor(Math.random() * 9000 + 1000);
   return `SYN-${stamp}-${rand}`;
+}
+
+async function getCurrentRate() {
+  const rateSetting = await prisma.systemSetting.findUnique({
+    where: { settingKey: "airtime_rate" },
+  });
+
+  const parsed = rateSetting ? Number(rateSetting.settingValue) : FALLBACK_RATE;
+
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 1) {
+    return FALLBACK_RATE;
+  }
+
+  return parsed;
 }
 
 export async function POST(req: NextRequest) {
@@ -72,7 +86,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const amountToPay = Number((airtimeAmount * DEFAULT_RATE).toFixed(2));
+    const currentRate = await getCurrentRate();
+    const amountToPay = Number((airtimeAmount * currentRate).toFixed(2));
     const transactionReference = makeReference();
 
     const transaction = await prisma.transaction.create({
@@ -82,7 +97,7 @@ export async function POST(req: NextRequest) {
         payingNumber,
         operator,
         airtimeAmount,
-        rateUsed: DEFAULT_RATE,
+        rateUsed: currentRate,
         amountToPay,
 
         paymentStatus: "PENDING_PAYMENT",
