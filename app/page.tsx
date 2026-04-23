@@ -12,7 +12,6 @@ type ServiceStatus = "LIVE" | "NO_AIRTIME" | "MAINTENANCE";
 
 function normalizeKenyanPhone(value: string) {
   const cleaned = value.replace(/\D/g, "");
-
   if (cleaned.startsWith("254") && cleaned.length === 12) return `+${cleaned}`;
   if (cleaned.startsWith("0") && cleaned.length === 10) return `+254${cleaned.slice(1)}`;
   if (cleaned.length === 9) return `+254${cleaned}`;
@@ -48,7 +47,6 @@ function TopLogo() {
         <div className="relative h-12 w-12 rotate-45 rounded-2xl bg-gradient-to-br from-green-500 to-green-700 sm:h-16 sm:w-16">
           <div className="absolute inset-2 rounded-xl border-[6px] border-white border-t-transparent border-b-transparent" />
         </div>
-
         <div className="text-left">
           <div className="text-2xl font-black leading-none tracking-[0.16em] text-green-600 sm:text-4xl">
             SYNERGOS
@@ -62,15 +60,7 @@ function TopLogo() {
   );
 }
 
-function InfoCard({
-  badge,
-  title,
-  text,
-}: {
-  badge: string;
-  title: string;
-  text: string;
-}) {
+function InfoCard({ badge, title, text }: { badge: string; title: string; text: string }) {
   return (
     <div className="flex items-start gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_8px_18px_rgba(15,23,42,0.04)]">
       <div className="flex h-14 w-14 min-w-14 items-center justify-center rounded-full bg-green-600 text-lg font-black text-white">
@@ -84,15 +74,7 @@ function InfoCard({
   );
 }
 
-function WhyCard({
-  badge,
-  title,
-  text,
-}: {
-  badge: string;
-  title: string;
-  text: string;
-}) {
+function WhyCard({ badge, title, text }: { badge: string; title: string; text: string }) {
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-8 text-center shadow-[0_12px_28px_rgba(15,23,42,0.05)]">
       <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-500 text-2xl font-black text-white sm:h-24 sm:w-24 sm:text-3xl">
@@ -107,20 +89,14 @@ function WhyCard({
 function ServiceBanner({
   serviceStatus,
   serviceMessage,
-  airtimeBalance,
 }: {
   serviceStatus: ServiceStatus;
   serviceMessage: string;
-  airtimeBalance: number;
 }) {
+  if (serviceStatus === "LIVE") return null;
+
   const styles =
-    serviceStatus === "LIVE"
-      ? {
-          wrap: "border-green-200 bg-green-50 text-green-800",
-          pill: "bg-green-600 text-white",
-          title: "Service Live",
-        }
-      : serviceStatus === "NO_AIRTIME"
+    serviceStatus === "NO_AIRTIME"
       ? {
           wrap: "border-amber-200 bg-amber-50 text-amber-900",
           pill: "bg-amber-500 text-white",
@@ -137,17 +113,11 @@ function ServiceBanner({
       <div className={`rounded-[24px] border px-5 py-4 shadow-sm ${styles.wrap}`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <span className={`rounded-full px-3 py-1 text-xs font-black tracking-[0.14em] ${styles.pill}`}>
-                {styles.title.toUpperCase()}
-              </span>
-              <span className="text-sm font-bold">
-                Airtime Balance: {formatKES(airtimeBalance)}
-              </span>
+            <div className={`inline-block rounded-full px-3 py-1 text-xs font-black tracking-[0.14em] ${styles.pill}`}>
+              {styles.title.toUpperCase()}
             </div>
             <div className="mt-2 text-sm font-medium sm:text-base">{serviceMessage}</div>
           </div>
-
           <div className="text-sm font-bold">
             Status: <span className="font-black">{serviceStatus}</span>
           </div>
@@ -161,19 +131,7 @@ type ApiResponse = {
   success: boolean;
   message: string;
   transaction?: {
-    id: number;
     transactionReference: string;
-    recipientNumber: string;
-    payingNumber: string;
-    operator: string;
-    airtimeAmount: number;
-    rateUsed: number;
-    amountToPay: number;
-    paymentStatus: string;
-    deliveryStatus: string;
-    retryCount: number;
-    status: string;
-    createdAt: string;
   };
 };
 
@@ -183,7 +141,6 @@ type SettingsResponse = {
     airtimeRate: number;
     serviceStatus: ServiceStatus;
     serviceMessage: string;
-    airtimeBalance: number;
   };
 };
 
@@ -197,7 +154,6 @@ export default function HomePage() {
   const [currentRate, setCurrentRate] = useState(FALLBACK_RATE);
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus>("LIVE");
   const [serviceMessage, setServiceMessage] = useState("Airtime service is available.");
-  const [airtimeBalance, setAirtimeBalance] = useState(0);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -215,7 +171,6 @@ export default function HomePage() {
           setCurrentRate(data.settings.airtimeRate || FALLBACK_RATE);
           setServiceStatus(data.settings.serviceStatus || "LIVE");
           setServiceMessage(data.settings.serviceMessage || "Airtime service is available.");
-          setAirtimeBalance(Number(data.settings.airtimeBalance || 0));
         }
       } catch (error) {
         console.error("FETCH_SETTINGS_ERROR", error);
@@ -229,6 +184,7 @@ export default function HomePage() {
 
   const numericAmount = Number(amount || 0);
   const actualRecipientNumber = sameNumber ? payingNumber : recipientNumber;
+  const serviceLive = serviceStatus === "LIVE";
 
   const amountToPay = useMemo(() => {
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) return 0;
@@ -239,7 +195,6 @@ export default function HomePage() {
   const recipientValid =
     actualRecipientNumber.length === 0 ? true : isValidKenyanPhone(actualRecipientNumber);
   const amountValid = amount.length === 0 ? true : Number.isFinite(numericAmount) && numericAmount > 0;
-  const serviceLive = serviceStatus === "LIVE";
 
   const canProceed =
     Boolean(payingNumber) &&
@@ -379,11 +334,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <ServiceBanner
-        serviceStatus={serviceStatus}
-        serviceMessage={serviceMessage}
-        airtimeBalance={airtimeBalance}
-      />
+      <ServiceBanner serviceStatus={serviceStatus} serviceMessage={serviceMessage} />
 
       <section className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[34px] bg-[linear-gradient(135deg,#012615_0%,#042816_35%,#07572d_100%)] shadow-[0_18px_44px_rgba(2,38,21,0.20)]">
@@ -428,7 +379,7 @@ export default function HomePage() {
                   </div>
                   <div className="mt-3 text-sm font-extrabold text-white">Availability</div>
                   <div className="mt-1 text-xs text-emerald-100">
-                    {serviceStatus === "LIVE" ? "Service live" : "Check banner"}
+                    {serviceStatus === "LIVE" ? "Service live" : "Check notice"}
                   </div>
                 </div>
               </div>
@@ -506,9 +457,7 @@ export default function HomePage() {
                 className="h-[60px] w-full rounded-2xl border border-slate-300 px-4 text-base outline-none disabled:bg-slate-100"
               />
               {!payerValid && (
-                <p className="mt-2 text-sm text-red-600">
-                  Enter a valid Kenyan mobile number.
-                </p>
+                <p className="mt-2 text-sm text-red-600">Enter a valid Kenyan mobile number.</p>
               )}
             </div>
 
@@ -530,9 +479,7 @@ export default function HomePage() {
             </div>
 
             <div>
-              <label className="mb-2 block font-extrabold">
-                To: Enter Mobile number
-              </label>
+              <label className="mb-2 block font-extrabold">To: Enter Mobile number</label>
               <input
                 type="text"
                 placeholder="Enter recipient's number"
@@ -544,16 +491,12 @@ export default function HomePage() {
                 }`}
               />
               {!recipientValid && !sameNumber && (
-                <p className="mt-2 text-sm text-red-600">
-                  Enter a valid Kenyan mobile number.
-                </p>
+                <p className="mt-2 text-sm text-red-600">Enter a valid Kenyan mobile number.</p>
               )}
             </div>
 
             <div>
-              <label className="mb-2 block font-extrabold">
-                Enter Amount (KES)
-              </label>
+              <label className="mb-2 block font-extrabold">Enter Amount (KES)</label>
               <input
                 type="number"
                 min="1"
@@ -605,9 +548,7 @@ export default function HomePage() {
             <div className="rounded-[18px] border border-green-200 bg-gradient-to-b from-green-50 to-green-100 p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-base font-black text-green-700">You will pay</div>
-                <div className="text-2xl font-black text-green-700">
-                  {formatKES(amountToPay)}
-                </div>
+                <div className="text-2xl font-black text-green-700">{formatKES(amountToPay)}</div>
               </div>
 
               <div className="mt-3 space-y-1 text-slate-700">
@@ -654,26 +595,10 @@ export default function HomePage() {
 
       <section className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <InfoCard
-            badge="FAST"
-            title="Instant Delivery"
-            text="Airtime is delivered instantly after successful payment verification."
-          />
-          <InfoCard
-            badge="%"
-            title="Best Rates"
-            text="Enjoy live admin-controlled rates across the platform."
-          />
-          <InfoCard
-            badge="LOCK"
-            title="Secure Payments"
-            text="100% secure M-PESA payments with advanced protection."
-          />
-          <InfoCard
-            badge="HELP"
-            title="24/7 Support"
-            text="We are always here to help you whenever you need us."
-          />
+          <InfoCard badge="FAST" title="Instant Delivery" text="Airtime is delivered instantly after successful payment verification." />
+          <InfoCard badge="%" title="Best Rates" text="Enjoy live admin-controlled rates across the platform." />
+          <InfoCard badge="LOCK" title="Secure Payments" text="100% secure M-PESA payments with advanced protection." />
+          <InfoCard badge="HELP" title="24/7 Support" text="We are always here to help you whenever you need us." />
         </div>
       </section>
 
@@ -686,26 +611,10 @@ export default function HomePage() {
           <div className="mt-3 h-[5px] w-[70px] rounded-full bg-green-600" />
 
           <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <WhyCard
-              badge="FAST"
-              title="Instant Delivery"
-              text="Airtime is delivered instantly after successful payment verification."
-            />
-            <WhyCard
-              badge="%"
-              title="Live Rate"
-              text="Your admin can update the rate and the site reflects it immediately."
-            />
-            <WhyCard
-              badge="LOCK"
-              title="Secure Payments"
-              text="100% secure M-PESA payments with advanced protection."
-            />
-            <WhyCard
-              badge="HELP"
-              title="24/7 Support"
-              text="We are always here to help you whenever you need us."
-            />
+            <WhyCard badge="FAST" title="Instant Delivery" text="Airtime is delivered instantly after successful payment verification." />
+            <WhyCard badge="%" title="Live Rate" text="Your admin can update the rate and the site reflects it immediately." />
+            <WhyCard badge="LOCK" title="Secure Payments" text="100% secure M-PESA payments with advanced protection." />
+            <WhyCard badge="HELP" title="24/7 Support" text="We are always here to help you whenever you need us." />
           </div>
         </div>
       </section>
@@ -714,7 +623,6 @@ export default function HomePage() {
         <div className="grid gap-5 lg:grid-cols-[1.2fr_0.9fr]">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
             <div className="text-3xl font-black sm:text-[40px]">How It Works</div>
-
             <div className="mt-5 grid gap-4">
               {[
                 ["Enter your M-PESA number", "This is the number that will receive the STK push."],
@@ -737,27 +645,15 @@ export default function HomePage() {
 
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
             <div className="text-3xl font-black sm:text-[40px]">Need Help?</div>
-            <div className="mt-2 text-lg text-slate-500">
-              Tap to contact us instantly
-            </div>
+            <div className="mt-2 text-lg text-slate-500">Tap to contact us instantly</div>
 
             <div className="mt-5 grid gap-4">
               <div className="rounded-[18px] border border-green-200 bg-green-50 p-5">
                 <div className="text-[22px] font-black">Call Support</div>
                 <div className="mt-1 text-slate-500">Tap to call or copy</div>
                 <div className="mt-4 flex flex-wrap gap-2.5">
-                  <a
-                    href={`tel:${SUPPORT_PHONE_1}`}
-                    className="rounded-xl bg-green-600 px-4 py-3 font-extrabold text-white"
-                  >
-                    Call 1
-                  </a>
-                  <a
-                    href={`tel:${SUPPORT_PHONE_2}`}
-                    className="rounded-xl bg-sky-600 px-4 py-3 font-extrabold text-white"
-                  >
-                    Call 2
-                  </a>
+                  <a href={`tel:${SUPPORT_PHONE_1}`} className="rounded-xl bg-green-600 px-4 py-3 font-extrabold text-white">Call 1</a>
+                  <a href={`tel:${SUPPORT_PHONE_2}`} className="rounded-xl bg-sky-600 px-4 py-3 font-extrabold text-white">Call 2</a>
                   <button
                     onClick={() => copyText(`${SUPPORT_PHONE_1} / ${SUPPORT_PHONE_2}`, "Support numbers")}
                     className="rounded-xl bg-slate-900 px-4 py-3 font-extrabold text-white"
@@ -787,12 +683,7 @@ export default function HomePage() {
                 <div className="text-[22px] font-black">Email Support</div>
                 <div className="mt-1 text-slate-500">Tap to email or copy</div>
                 <div className="mt-4 flex flex-wrap gap-2.5">
-                  <a
-                    href={`mailto:${SUPPORT_EMAIL}`}
-                    className="rounded-xl bg-green-600 px-4 py-3 font-extrabold text-white"
-                  >
-                    Email
-                  </a>
+                  <a href={`mailto:${SUPPORT_EMAIL}`} className="rounded-xl bg-green-600 px-4 py-3 font-extrabold text-white">Email</a>
                   <button
                     onClick={() => copyText(SUPPORT_EMAIL, "Support email")}
                     className="rounded-xl bg-slate-900 px-4 py-3 font-extrabold text-white"
@@ -813,7 +704,6 @@ export default function HomePage() {
             Copyright © SYNERGOS AIRTIME HUB
           </div>
           <div className="mt-3 text-lg text-slate-500">Share on social</div>
-
           <div className="mt-5 flex flex-wrap justify-center gap-4">
             {["T", "F", "X", "I"].map((item, index) => (
               <div
