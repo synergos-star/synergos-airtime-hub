@@ -3,14 +3,17 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Synergos Airtime Hub",
-  description: "Buy airtime instantly with Synergos Airtime Hub.",
+  description: "Instant airtime anytime, anywhere.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <body>{children}</body>
