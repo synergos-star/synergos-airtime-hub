@@ -205,7 +205,20 @@ export default function HomePage() {
       const stkData = await stkResponse.json();
 
       if (!stkResponse.ok || !stkData.success) {
-        setErrorMessage(stkData.message || "Transaction created, but STK push failed.");
+        const message = String(stkData.message || "Transaction created, but STK push failed.");
+
+        if (
+          message.includes("Missing M-PESA shortcode") ||
+          message.includes("Missing M-PESA consumer") ||
+          message.includes("Missing M-PESA")
+        ) {
+          setSuccessMessage(
+            "Transaction created successfully. M-PESA payment is not fully configured yet, so STK push was skipped for now."
+          );
+          return;
+        }
+
+        setErrorMessage(message);
         return;
       }
 
@@ -671,7 +684,7 @@ export default function HomePage() {
       <footer className="px-4 pb-7 pt-9 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl text-center">
           <div className="text-xl font-bold text-slate-700 sm:text-[22px]">
-            Copyright Â© SYNERGOS AIRTIME HUB
+            Copyright Ã‚Â© SYNERGOS AIRTIME HUB
           </div>
           <div className="mt-3 text-lg text-slate-500">Share on social</div>
 
