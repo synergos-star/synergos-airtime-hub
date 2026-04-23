@@ -9,8 +9,8 @@ datasource db {
 }
 
 model Transaction {
-  id                    Int      @id @default(autoincrement())
-  transactionReference  String   @unique
+  id                    Int           @id @default(autoincrement())
+  transactionReference  String        @unique
   recipientNumber       String
   payingNumber          String
   operator              String
@@ -18,15 +18,15 @@ model Transaction {
   rateUsed              Float
   amountToPay           Float
 
-  paymentStatus         String   @default("PENDING_PAYMENT")
-  deliveryStatus        String   @default("NOT_SENT")
-  status                String   @default("PENDING_PAYMENT")
+  paymentStatus         String        @default("PENDING_PAYMENT")
+  deliveryStatus        String        @default("NOT_SENT")
+  status                String        @default("PENDING_PAYMENT")
 
   mpesaReceipt          String?
   checkoutRequestId     String?
   merchantRequestId     String?
 
-  retryCount            Int      @default(0)
+  retryCount            Int           @default(0)
   lastRetryAt           DateTime?
   nextRetryAt           DateTime?
 
@@ -34,6 +34,30 @@ model Transaction {
   failureReason         String?
   deliveryFailureReason String?
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  deliveryJobs          DeliveryJob[]
+}
+
+model DeliveryJob {
+  id                    Int         @id @default(autoincrement())
+  transactionId         Int
+  transactionReference  String
+  recipientNumber       String
+  operator              String
+  amount                Float
+  ussdCode              String?
+  status                String      @default("PENDING")
+  agentName             String?
+  providerResponse      String?
+  failureReason         String?
+  retryCount            Int         @default(0)
+  executedAt            DateTime?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  transaction           Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
 }
