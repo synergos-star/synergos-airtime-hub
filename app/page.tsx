@@ -8,6 +8,8 @@ const SUPPORT_PHONE_2 = "0796684318";
 const SUPPORT_EMAIL = "ratiisimon@gmail.com";
 const WHATSAPP_NUMBER = "254112371614";
 
+type ServiceStatus = "LIVE" | "NO_AIRTIME" | "MAINTENANCE";
+
 function normalizeKenyanPhone(value: string) {
   const cleaned = value.replace(/\D/g, "");
 
@@ -102,6 +104,59 @@ function WhyCard({
   );
 }
 
+function ServiceBanner({
+  serviceStatus,
+  serviceMessage,
+  airtimeBalance,
+}: {
+  serviceStatus: ServiceStatus;
+  serviceMessage: string;
+  airtimeBalance: number;
+}) {
+  const styles =
+    serviceStatus === "LIVE"
+      ? {
+          wrap: "border-green-200 bg-green-50 text-green-800",
+          pill: "bg-green-600 text-white",
+          title: "Service Live",
+        }
+      : serviceStatus === "NO_AIRTIME"
+      ? {
+          wrap: "border-amber-200 bg-amber-50 text-amber-900",
+          pill: "bg-amber-500 text-white",
+          title: "No Airtime Available",
+        }
+      : {
+          wrap: "border-red-200 bg-red-50 text-red-800",
+          pill: "bg-red-600 text-white",
+          title: "Under Maintenance",
+        };
+
+  return (
+    <section className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
+      <div className={`rounded-[24px] border px-5 py-4 shadow-sm ${styles.wrap}`}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className={`rounded-full px-3 py-1 text-xs font-black tracking-[0.14em] ${styles.pill}`}>
+                {styles.title.toUpperCase()}
+              </span>
+              <span className="text-sm font-bold">
+                Airtime Balance: {formatKES(airtimeBalance)}
+              </span>
+            </div>
+            <div className="mt-2 text-sm font-medium sm:text-base">{serviceMessage}</div>
+          </div>
+
+          <div className="text-sm font-bold">
+            Status: <span className="font-black">{serviceStatus}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 type ApiResponse = {
   success: boolean;
   message: string;
@@ -126,6 +181,9 @@ type SettingsResponse = {
   success: boolean;
   settings?: {
     airtimeRate: number;
+    serviceStatus: ServiceStatus;
+    serviceMessage: string;
+    airtimeBalance: number;
   };
 };
 
@@ -137,7 +195,10 @@ export default function HomePage() {
   const [amount, setAmount] = useState("250");
 
   const [currentRate, setCurrentRate] = useState(FALLBACK_RATE);
-  const [isLoadingRate, setIsLoadingRate] = useState(true);
+  const [serviceStatus, setServiceStatus] = useState<ServiceStatus>("LIVE");
+  const [serviceMessage, setServiceMessage] = useState("Airtime service is available.");
+  const [airtimeBalance, setAirtimeBalance] = useState(0);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -145,22 +206,25 @@ export default function HomePage() {
   const [transactionReference, setTransactionReference] = useState("");
 
   useEffect(() => {
-    async function fetchRate() {
+    async function fetchSettings() {
       try {
         const response = await fetch("/api/settings", { cache: "no-store" });
         const data: SettingsResponse = await response.json();
 
-        if (response.ok && data.success && data.settings?.airtimeRate) {
-          setCurrentRate(data.settings.airtimeRate);
+        if (response.ok && data.success && data.settings) {
+          setCurrentRate(data.settings.airtimeRate || FALLBACK_RATE);
+          setServiceStatus(data.settings.serviceStatus || "LIVE");
+          setServiceMessage(data.settings.serviceMessage || "Airtime service is available.");
+          setAirtimeBalance(Number(data.settings.airtimeBalance || 0));
         }
       } catch (error) {
-        console.error("FETCH_RATE_ERROR", error);
+        console.error("FETCH_SETTINGS_ERROR", error);
       } finally {
-        setIsLoadingRate(false);
+        setIsLoadingSettings(false);
       }
     }
 
-    fetchRate();
+    fetchSettings();
   }, []);
 
   const numericAmount = Number(amount || 0);
@@ -175,6 +239,7 @@ export default function HomePage() {
   const recipientValid =
     actualRecipientNumber.length === 0 ? true : isValidKenyanPhone(actualRecipientNumber);
   const amountValid = amount.length === 0 ? true : Number.isFinite(numericAmount) && numericAmount > 0;
+  const serviceLive = serviceStatus === "LIVE";
 
   const canProceed =
     Boolean(payingNumber) &&
@@ -183,13 +248,19 @@ export default function HomePage() {
     payerValid &&
     recipientValid &&
     amountValid &&
+    serviceLive &&
     !isSubmitting &&
-    !isLoadingRate;
+    !isLoadingSettings;
 
   async function handleSubmit() {
     setErrorMessage("");
     setSuccessMessage("");
     setTransactionReference("");
+
+    if (!serviceLive) {
+      setErrorMessage(serviceMessage || "Service is temporarily unavailable.");
+      return;
+    }
 
     if (!canProceed) {
       setErrorMessage("Please fill all fields correctly before continuing.");
@@ -308,6 +379,12 @@ export default function HomePage() {
         </div>
       </section>
 
+      <ServiceBanner
+        serviceStatus={serviceStatus}
+        serviceMessage={serviceMessage}
+        airtimeBalance={airtimeBalance}
+      />
+
       <section className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[34px] bg-[linear-gradient(135deg,#012615_0%,#042816_35%,#07572d_100%)] shadow-[0_18px_44px_rgba(2,38,21,0.20)]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_34%,rgba(90,255,140,0.16),transparent_16%),radial-gradient(circle_at_58%_54%,rgba(255,255,255,0.05),transparent_18%),radial-gradient(circle_at_18%_30%,rgba(255,255,255,0.03),transparent_30%)]" />
@@ -333,7 +410,7 @@ export default function HomePage() {
                   </div>
                   <div className="mt-3 text-sm font-extrabold text-white">Current Rate</div>
                   <div className="mt-1 text-xs text-emerald-100">
-                    {(currentRate * 100).toFixed(0)}%
+                    {(currentRate * 100).toFixed(1)}%
                   </div>
                 </div>
 
@@ -350,7 +427,9 @@ export default function HomePage() {
                     24/7
                   </div>
                   <div className="mt-3 text-sm font-extrabold text-white">Availability</div>
-                  <div className="mt-1 text-xs text-emerald-100">We are always here</div>
+                  <div className="mt-1 text-xs text-emerald-100">
+                    {serviceStatus === "LIVE" ? "Service live" : "Check banner"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -406,6 +485,7 @@ export default function HomePage() {
                 value={operator}
                 onChange={(e) => setOperator(e.target.value)}
                 className="h-[60px] w-full rounded-2xl border border-slate-300 bg-white px-4 text-base outline-none"
+                disabled={!serviceLive}
               >
                 <option>Safaricom</option>
                 <option>Airtel</option>
@@ -422,7 +502,8 @@ export default function HomePage() {
                 placeholder="Enter phone number"
                 value={payingNumber}
                 onChange={(e) => setPayingNumber(e.target.value)}
-                className="h-[60px] w-full rounded-2xl border border-slate-300 px-4 text-base outline-none"
+                disabled={!serviceLive}
+                className="h-[60px] w-full rounded-2xl border border-slate-300 px-4 text-base outline-none disabled:bg-slate-100"
               />
               {!payerValid && (
                 <p className="mt-2 text-sm text-red-600">
@@ -441,6 +522,7 @@ export default function HomePage() {
                   setSameNumber(checked);
                   if (checked) setRecipientNumber("");
                 }}
+                disabled={!serviceLive}
               />
               <label htmlFor="same-number" className="font-bold text-slate-600">
                 Use same number to receive airtime
@@ -456,9 +538,9 @@ export default function HomePage() {
                 placeholder="Enter recipient's number"
                 value={recipientNumber}
                 onChange={(e) => setRecipientNumber(e.target.value)}
-                disabled={sameNumber}
+                disabled={sameNumber || !serviceLive}
                 className={`h-[60px] w-full rounded-2xl border border-slate-300 px-4 text-base outline-none ${
-                  sameNumber ? "bg-slate-100" : "bg-white"
+                  sameNumber || !serviceLive ? "bg-slate-100" : "bg-white"
                 }`}
               />
               {!recipientValid && !sameNumber && (
@@ -478,7 +560,8 @@ export default function HomePage() {
                 placeholder="Enter amount"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="h-[60px] w-full rounded-2xl border border-slate-300 px-4 text-base outline-none"
+                disabled={!serviceLive}
+                className="h-[60px] w-full rounded-2xl border border-slate-300 px-4 text-base outline-none disabled:bg-slate-100"
               />
               {!amountValid && (
                 <p className="mt-2 text-sm text-red-600">
@@ -492,8 +575,9 @@ export default function HomePage() {
                 <button
                   key={preset}
                   onClick={() => setAmount(String(preset))}
-                  className="min-w-[62px] rounded-xl border border-slate-300 bg-white px-4 py-2 font-bold"
+                  className="min-w-[62px] rounded-xl border border-slate-300 bg-white px-4 py-2 font-bold disabled:bg-slate-100"
                   type="button"
+                  disabled={!serviceLive}
                 >
                   {preset}
                 </button>
@@ -533,7 +617,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex justify-between gap-3">
                   <span>Rate</span>
-                  <span>{(currentRate * 100).toFixed(0)}%</span>
+                  <span>{(currentRate * 100).toFixed(1)}%</span>
                 </div>
               </div>
             </div>
@@ -548,12 +632,22 @@ export default function HomePage() {
               }`}
               type="button"
             >
-              {isSubmitting ? "Creating Transaction..." : isLoadingRate ? "Loading rate..." : "BUY AIRTIME NOW"}
+              {isSubmitting
+                ? "Creating Transaction..."
+                : isLoadingSettings
+                ? "Loading settings..."
+                : serviceLive
+                ? "BUY AIRTIME NOW"
+                : serviceStatus === "NO_AIRTIME"
+                ? "NO AIRTIME AVAILABLE"
+                : "UNDER MAINTENANCE"}
             </button>
           </div>
 
           <div className="mt-4 text-center text-[15px] text-slate-500">
-            STK push will be sent to your M-PESA number. Airtime will be delivered instantly.
+            {serviceLive
+              ? "STK push will be sent to your M-PESA number. Airtime will be delivered instantly."
+              : serviceMessage}
           </div>
         </div>
       </section>
