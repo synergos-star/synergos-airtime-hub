@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { initiateMockStkPush } from "@/lib/mpesa";
+import { initiateRealStkPush } from "@/lib/mpesa";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const stk = await initiateMockStkPush({
+    const stk = await initiateRealStkPush({
       amount: transaction.amountToPay,
       phoneNumber: transaction.payingNumber,
       accountReference: transaction.transactionReference,
@@ -65,7 +65,10 @@ export async function POST(req: NextRequest) {
     console.error("MPESA_STK_PUSH_ERROR", error);
 
     return NextResponse.json(
-      { success: false, message: "Failed to initiate STK push." },
+      {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to initiate STK push.",
+      },
       { status: 500 }
     );
   }
