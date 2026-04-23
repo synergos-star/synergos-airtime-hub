@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 model Transaction {
@@ -19,7 +20,6 @@ model Transaction {
 
   paymentStatus         String   @default("PENDING_PAYMENT")
   deliveryStatus        String   @default("NOT_SENT")
-
   status                String   @default("PENDING_PAYMENT")
 
   mpesaReceipt          String?
